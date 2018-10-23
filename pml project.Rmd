@@ -1,0 +1,146 @@
+PRACTICAL MACHINE LEARNING PROJECT
+========================================================
+By: Ishola K. Taofeek
+
+**OVERVIEW**
+Using Devices such as Jawbone Up, Nike FuelBand and FitBit, It is now possible to collect a large amount of  data about personal activity relatively inexpensively. This type of devices are part of the quantified self movement - A group of enthusist who take regular measurement about themselves to improve their health, find patterns in their behaviour because they  are tech geeks. One thing people do regularly is how much of a particular activity they do but they rarely quanntify  it well.
+
+In this project; We are loading two csv files: one is the training data and the other will be used to make final prediction on the the model built from the training data.
+
+The training data will be sub-divided into two: 75% for training and the remaining for testing the model before being used to finally predict the loded csv test data.
+
+
+```{r}
+library(caret)
+library(rattle)
+library(randomForest)
+```
+
+```{r}
+readTrain<-read.csv('pml-training.csv')
+dim(readTrain)
+readTest<-read.csv('pml-testing.csv')
+dim(readTest)
+```
+
+The loaded data seems very untidy,therefore cleaning the data will be the first step in our analysis.
+
+```{r}
+train_rem=colSums(is.na(readTrain))==0
+test_rem=colSums(is.na(readTest))==0
+
+tidy_train<-readTrain[,train_rem]
+dim(tidy_train)
+
+tidy_test<-readTest[,test_rem]
+dim(tidy_test)
+```
+
+The first seven variables are not relevant to our analysis and have little or no impact on our outcome
+
+```{r}
+real_train<-tidy_train[,-c(1:7)]
+dim(real_train)
+
+
+real_test<-tidy_test[,-c(1:7)]
+dim(real_test)
+```
+
+Now, split the real_train dataframe into training and testing set
+
+```{r}
+set.seed(123)
+inTrain<-createDataPartition(real_train$classe,p=0.75,list=F)
+training<-real_train[inTrain,]
+testing<-real_train[-inTrain,]
+dim(training)
+dim(testing)
+```
+
+Remove nearZeroVar columns from data
+
+```{r}
+near_zero<-nearZeroVar(training)
+training<-training[,-near_zero]
+dim(training)
+
+testing<-testing[,-near_zero]
+dim(testing)
+```
+
+setting up cross validation
+
+```{r}
+control<-trainControl(method='cv',number=5)
+```
+
+
+first Model: Decision Tree
+
+
+```{r}
+Tree_Model<-train(classe~.,data=training,method='rpart')
+
+fancyRpartPlot(Tree_Model$finalModel)
+```
+
+Lets predict classe in the test data using the decision tree model
+
+```{r}
+tree_predict<-predict(Tree_Model,testing)
+
+confusionMatrix(tree_predict,testing$classe)
+```
+
+**RANDOM FOREST MODEL**
+
+```{r}
+forest_model<-train(classe~.,data=training,method='rf',verbose=F,trControl=control)
+
+print(forest_model)
+
+plot(forest_model,main='Accuracy by number of predictors used')
+```
+
+Apply forest_model on testing data
+
+```{r}
+forest_prediction<-predict(forest_model,testing)
+
+confusionMatrix(forest_prediction,testing$classe)
+```
+
+**GBM MODEL**
+
+```{r}
+gbm_model<-train(classe~.,method='gbm',data=training,verbose=F,trControl=control)
+
+print(gbm_model)
+```
+
+Apply GBM MODEL on testing data
+
+```{r}
+gbm_prediction<-predict(gbm_model,testing)
+
+confusionMatrix(gbm_prediction, testing$classe)
+```
+
+**MODEL ACCURACY ON TESTING DATA**
+
+GBM model accuracy on test data=96.2%
+
+Decision Tree accuracy on test data=48.8%
+
+Forest_model accuracy on test data=99.3%
+
+
+**Applying the forest model on the real_test data**
+
+```{r}
+forestpredict_realtest<-predict(forest_model, real_test)
+
+forestpredict_realtest
+```
+
